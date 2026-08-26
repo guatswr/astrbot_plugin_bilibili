@@ -12,6 +12,7 @@ def _asset_path(*parts: str) -> str:
 
 LOGO_PATH = _asset_path("Astrbot.png")
 BANNER_PATH = _asset_path("banner.png")
+ATRI_CHARACTER_PATH = _asset_path("atri", "atri_character_v2.png")
 BV = r"(?:\?.*)?(?:https?:\/\/)?(?:www\.)?(?:bilibili\.com\/video\/(BV[a-zA-Z0-9]+)|b23\.tv\/([a-zA-Z0-9]+))\/?(?:\?.*)?|BV[a-zA-Z0-9]+"
 VALID_FILTER_TYPES = {
     "forward",
@@ -56,6 +57,12 @@ CARD_TEMPLATES: Dict[str, dict] = {
         "description": "简洁现代的设计",
         "file": "template_simple.html",
         "path": _asset_path("template_simple.html"),
+    },
+    "atri": {
+        "name": "亚托莉风格",
+        "description": "海洋与仿生人主题的亚托莉定制卡片",
+        "file": "template_atri.html",
+        "path": _asset_path("template_atri.html"),
     },
 }
 

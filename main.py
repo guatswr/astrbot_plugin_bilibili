@@ -71,7 +71,7 @@ class Main(Star):
                 "recent_dynamic_cache", RECENT_DYNAMIC_CACHE
             )
         )
-        self.renderer = Renderer(self, self.rai, self.style)
+        self.renderer = Renderer(self, self.rai, self.style, self.cfg)
         self._last_notify_write_ts = self.data_manager.get_last_success_sub_notify_ts()
         self.notification_dispatcher = SubscriptionNotificationDispatcher(
             context=self.context,
@@ -393,61 +393,69 @@ class Main(Star):
             f"✅ 已切换样式为：{info['name']} ({style})"
         )
 
+    async def _resolve_video_reference(
+        self, reference: str
+    ) -> tuple[str | None, str]:
+        """从 BV 号、视频链接或 b23 短链中解析 BVID 和展示链接。"""
+        match_ = re.search(BV, reference, re.IGNORECASE)
+        if not match_:
+            return None, reference
+
+        resolved_reference = reference
+        if match_.group(2):
+            converted_url = await self.bili_client.b23_to_bv(match_.group(0))
+            if not converted_url:
+                return None, reference
+            resolved_reference = converted_url
+
+        match_bv = re.search(
+            r"(BV[a-zA-Z0-9]+)", resolved_reference, re.IGNORECASE
+        )
+        if not match_bv:
+            return None, resolved_reference
+        return match_bv.group(1), resolved_reference
+
+    async def _send_video_card(self, event: AstrMessageEvent, bvid: str) -> None:
+        """获取视频详情并向当前事件发送视频卡片。"""
+        video_data = await self.bili_client.get_video_info(bvid=bvid)
+        if not video_data:
+            await event.send(MessageChain().message("获取视频信息失败了 (´;ω;`)"))
+            return
+
+        info = video_data["info"]
+        online = video_data["online"]
+        payload = RenderPayload(
+            name="AstrBot",
+            avatar=image_to_base64(LOGO_PATH),
+            title=info["title"],
+            text=(
+                f"UP 主: {info['owner']['name']}<br>"
+                f"播放量: {info['stat']['view']}<br>"
+                f"点赞: {info['stat']['like']}<br>"
+                f"投币: {info['stat']['coin']}<br>"
+                f"总共 {online['total']} 人正在观看"
+            ),
+            image_urls=[info["pic"]],
+        )
+
+        img_path = await self.renderer.render_dynamic(payload)
+        if img_path:
+            await event.send(MessageChain().file_image(img_path))
+            return
+
+        msg = "渲染图片失败了 (´;ω;`)"
+        text = "\n".join(filter(None, payload.text.split("<br>")))
+        await event.send(
+            MessageChain().message(msg).message(text).url_image(info["pic"])
+        )
+
     @regex(BV)
     async def get_video_info(self, event: AstrMessageEvent):
-        if self.enable_parse_BV:
-            match_ = re.search(BV, event.message_str, re.IGNORECASE)
-            if not match_:
-                return
-            # 匹配到短链接
-            if match_.group(2):
-                full_link = match_.group(0)
-                converted_url = await self.bili_client.b23_to_bv(full_link)
-                if not converted_url:
-                    return
-                match_bv = re.search(r"(BV[a-zA-Z0-9]+)", converted_url, re.IGNORECASE)
-                if match_bv:
-                    bvid = match_bv.group(1)
-                else:
-                    return
-            # 匹配到长链接
-            elif match_.group(1):
-                bvid = match_.group(1)
-            # 匹配到纯 BV 号
-            elif match_.group(0):
-                bvid = match_.group(0)
-
-            video_data = await self.bili_client.get_video_info(bvid=bvid)
-            if not video_data:
-                return await event.send(
-                    MessageChain().message("获取视频信息失败了 (´;ω;`)")
-                )
-            info = video_data["info"]
-            online = video_data["online"]
-
-            payload = RenderPayload(
-                name="AstrBot",
-                avatar=image_to_base64(LOGO_PATH),
-                title=info["title"],
-                text=(
-                    f"UP 主: {info['owner']['name']}<br>"
-                    f"播放量: {info['stat']['view']}<br>"
-                    f"点赞: {info['stat']['like']}<br>"
-                    f"投币: {info['stat']['coin']}<br>"
-                    f"总共 {online['total']} 人正在观看"
-                ),
-                image_urls=[info["pic"]],
-            )
-
-            img_path = await self.renderer.render_dynamic(payload)
-            if img_path:
-                await event.send(MessageChain().file_image(img_path))
-            else:
-                msg = "渲染图片失败了 (´;ω;`)"
-                text = "\n".join(filter(None, payload.text.split("<br>")))
-                await event.send(
-                    MessageChain().message(msg).message(text).url_image(info["pic"])
-                )
+        if not self.enable_parse_BV:
+            return
+        bvid, _ = await self._resolve_video_reference(event.message_str)
+        if bvid:
+            await self._send_video_card(event, bvid)
 
     @command("bili_sub", alias={"订阅动态"})
     async def dynamic_sub(self, event: AstrMessageEvent, uid: str, input: GreedyStr):
@@ -708,6 +716,16 @@ class Main(Star):
                 ret += f"  - {uid}\n"
         return MessageEventResult().message(ret)
 
+    async def _send_miniapp_info_and_card(
+        self, event: AstrMessageEvent, title: str, url: str
+    ) -> None:
+        """发送小程序链接信息，并在链接指向视频时追加视频卡片。"""
+        bvid, resolved_url = await self._resolve_video_reference(url)
+        ret = f"标题: {title}\n链接: {resolved_url}"
+        await event.send(MessageChain().message(ret))
+        if bvid:
+            await self._send_video_card(event, bvid)
+
     @event_message_type(EventMessageType.ALL)
     async def parse_miniapp(self, event: AstrMessageEvent):
         if self.enable_parse_miniapp:
@@ -731,19 +749,17 @@ class Main(Star):
                         desc = detail_1.get("desc")
 
                         if title == "哔哩哔哩" and qqdocurl:
-                            if "https://b23.tv" in qqdocurl:
-                                qqdocurl = await self.bili_client.b23_to_bv(qqdocurl)
-                            ret = f"标题: {desc}\n链接: {qqdocurl}"
-                            await event.send(MessageChain().message(ret))
+                            await self._send_miniapp_info_and_card(
+                                event, str(desc or ""), str(qqdocurl)
+                            )
                         news = meta.get("news", {})
                         tag = news.get("tag", "")
                         jumpurl = news.get("jumpUrl", "")
                         title = news.get("title", "")
                         if tag == "哔哩哔哩" and jumpurl:
-                            if "https://b23.tv" in jumpurl:
-                                jumpurl = await self.bili_client.b23_to_bv(jumpurl)
-                            ret = f"标题: {title}\n链接: {jumpurl}"
-                            await event.send(MessageChain().message(ret))
+                            await self._send_miniapp_info_and_card(
+                                event, str(title or ""), str(jumpurl)
+                            )
                     except json.JSONDecodeError:
                         logger.error(f"Failed to decode JSON string: {json_string}")
                     except Exception as e:

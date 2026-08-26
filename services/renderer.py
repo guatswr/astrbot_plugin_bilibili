@@ -1,11 +1,14 @@
 import asyncio
 import os
+from pathlib import Path
 from typing import Any, Dict
 
 from astrbot.api import logger
 from astrbot.api.all import Star
+from astrbot.api.star import StarTools
 
 from ..core.constant import (
+    ATRI_CHARACTER_PATH,
     BANNER_PATH,
     CARD_TEMPLATES,
     DEFAULT_TEMPLATE,
@@ -30,16 +33,70 @@ class Renderer:
     负责将动态数据渲染成图片。
     """
 
-    def __init__(self, star_instance: Star, rai: bool, style: str = DEFAULT_TEMPLATE):
+    def __init__(
+        self,
+        star_instance: Star,
+        rai: bool,
+        style: str = DEFAULT_TEMPLATE,
+        config: Any | None = None,
+    ):
         """
         初始化渲染器。
         """
         self.star = star_instance
         self.rai = rai
         self.style = style
+        self.config = config or {}
+        self.plugin_data_dir = Path(
+            StarTools.get_data_dir(plugin_name="astrbot_plugin_bilibili")
+        ).resolve()
+        self._atri_banner_cache: Dict[str, str] = {}
+        self._atri_character = image_to_base64(ATRI_CHARACTER_PATH)
+        self._bot_avatar = image_to_base64(LOGO_PATH)
         # 预加载所有模板
         self._templates: Dict[str, str] = {}
         self._load_all_templates()
+
+    def _get_atri_banner(self) -> str:
+        """读取配置中第一张安全、有效的 ATRI 顶部图片。"""
+        raw_paths = self.config.get("atri_banner_image", [])
+        if isinstance(raw_paths, str):
+            raw_paths = [raw_paths]
+        if not isinstance(raw_paths, list):
+            return ""
+
+        mime_types = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+        }
+        for raw_path in raw_paths:
+            if not isinstance(raw_path, str) or not raw_path.strip():
+                continue
+            try:
+                path = Path(raw_path.strip())
+                if not path.is_absolute():
+                    path = self.plugin_data_dir / path
+                path = path.resolve()
+                if not path.is_relative_to(self.plugin_data_dir):
+                    logger.warning(f"忽略插件数据目录外的 ATRI 顶部图片: {path}")
+                    continue
+                mime_type = mime_types.get(path.suffix.lower())
+                if not mime_type or not path.is_file():
+                    continue
+                if path.stat().st_size > 10 * 1024 * 1024:
+                    logger.warning(f"ATRI 顶部图片超过 10 MB，已忽略: {path}")
+                    continue
+                cache_key = f"{path}:{path.stat().st_mtime_ns}"
+                if cache_key not in self._atri_banner_cache:
+                    self._atri_banner_cache = {
+                        cache_key: image_to_base64(str(path), mime_type)
+                    }
+                return self._atri_banner_cache[cache_key]
+            except (OSError, ValueError) as exc:
+                logger.warning(f"读取 ATRI 顶部图片失败 ({raw_path}): {exc}")
+        return ""
 
     def _load_all_templates(self):
         """预加载所有注册的模板"""
@@ -75,8 +132,13 @@ class Renderer:
             "device_scale_factor_level": "ultra",
         }
 
-        tmpl = self.get_template(style)
+        target_style = style or self.style
+        tmpl = self.get_template(target_style)
         context = payload.to_template_context()
+        if target_style == "atri":
+            context["atri_character"] = self._atri_character
+            context["bot_avatar"] = self._bot_avatar
+            context["atri_banner"] = self._get_atri_banner()
 
         for attempt in range(1, MAX_ATTEMPTS + 1):
             render_output = None

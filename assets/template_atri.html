@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=720">
+    <title>ATRI System Card</title>
+    <style>
+        :root {
+            --abyss: #071827;
+            --deep-sea: #0b3047;
+            --ocean: #087f9e;
+            --aqua: #48e4f2;
+            --ice: #dffcff;
+            --pearl: #f8feff;
+            --navy: #15345f;
+            --coral: #ee6572;
+            --ink: #17334a;
+            --muted: #628399;
+        }
+
+        * { box-sizing: border-box; }
+
+        html {
+            height: auto;
+            min-height: 0;
+        }
+
+        body {
+            width: 720px;
+            min-height: 0;
+            margin: 0;
+            padding: 18px;
+            color: var(--ink);
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background:
+                radial-gradient(circle at 14% 8%, rgba(72, 228, 242, .28), transparent 25%),
+                radial-gradient(circle at 88% 26%, rgba(76, 146, 255, .22), transparent 27%),
+                linear-gradient(145deg, var(--abyss), var(--deep-sea) 58%, #0d5165);
+        }
+
+        .card {
+            position: relative;
+            width: 684px;
+            overflow: hidden;
+            border: 1px solid rgba(179, 246, 255, .8);
+            border-radius: 28px;
+            background: rgba(244, 253, 255, .98);
+            box-shadow:
+                0 24px 60px rgba(0, 10, 27, .48),
+                inset 0 0 0 4px rgba(255, 255, 255, .48);
+        }
+
+        .card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border-radius: inherit;
+            box-shadow: inset 0 0 34px rgba(67, 222, 239, .12);
+        }
+
+        .hero {
+            position: relative;
+            min-height: 276px;
+            overflow: hidden;
+            color: #fff;
+            background:
+                linear-gradient(115deg, rgba(6, 35, 58, .98) 0%, rgba(10, 93, 119, .95) 60%, rgba(45, 192, 211, .82) 100%);
+        }
+
+        .hero::before {
+            position: absolute;
+            z-index: 1;
+            inset: 0;
+            content: "";
+            pointer-events: none;
+            background:
+                linear-gradient(90deg, rgba(4, 25, 43, .91) 0%, rgba(5, 42, 63, .70) 49%, rgba(5, 58, 75, .16) 100%),
+                linear-gradient(180deg, rgba(3, 22, 38, .18), rgba(7, 70, 89, .38));
+        }
+
+        .hero-banner {
+            position: absolute;
+            z-index: 0;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            opacity: .78;
+            filter: saturate(.86) contrast(.92);
+        }
+
+        .circuit-grid {
+            position: absolute;
+            z-index: 1;
+            inset: 0;
+            opacity: .26;
+            background-image:
+                linear-gradient(rgba(113, 237, 246, .24) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(113, 237, 246, .24) 1px, transparent 1px);
+            background-size: 32px 32px;
+            transform: perspective(420px) rotateX(56deg) scale(1.35) translateY(72px);
+            transform-origin: bottom;
+        }
+
+        .sonar {
+            position: absolute;
+            z-index: 1;
+            right: 20px;
+            top: 38px;
+            width: 228px;
+            height: 228px;
+            border: 1px solid rgba(137, 245, 255, .28);
+            border-radius: 50%;
+            box-shadow:
+                0 0 0 28px rgba(117, 235, 246, .05),
+                0 0 0 58px rgba(117, 235, 246, .04);
+        }
+
+        .bubble, .bubble::before, .bubble::after {
+            position: absolute;
+            z-index: 1;
+            display: block;
+            border: 1px solid rgba(205, 252, 255, .58);
+            border-radius: 50%;
+            content: "";
+        }
+
+        .bubble { left: 34px; top: 44px; width: 10px; height: 10px; }
+        .bubble::before { left: 18px; top: 25px; width: 6px; height: 6px; }
+        .bubble::after { left: -12px; top: 46px; width: 16px; height: 16px; }
+
+        .system-bar {
+            position: relative;
+            z-index: 4;
+            height: 42px;
+            padding: 0 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(166, 246, 255, .26);
+            background: rgba(2, 21, 37, .36);
+            font-family: Consolas, "SFMono-Regular", monospace;
+            letter-spacing: 1.4px;
+        }
+
+        .system-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--ice);
+        }
+
+        .status {
+            display: flex;
+            gap: 7px;
+            align-items: center;
+            font-size: 10px;
+            color: #9dfff5;
+        }
+
+        .status::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #71ffcf;
+            box-shadow: 0 0 10px #71ffcf;
+        }
+
+        .identity {
+            position: relative;
+            z-index: 3;
+            width: 470px;
+            padding: 24px 20px 46px 26px;
+        }
+
+        .profile-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar-shell {
+            position: relative;
+            width: 72px;
+            height: 72px;
+            flex: 0 0 72px;
+            padding: 4px;
+            border: 1px solid rgba(173, 248, 255, .85);
+            border-radius: 22px 22px 22px 7px;
+            background: rgba(229, 253, 255, .16);
+            box-shadow: 0 8px 24px rgba(0, 13, 38, .32);
+        }
+
+        .avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 18px 18px 18px 5px;
+            object-fit: cover;
+            background: rgba(255, 255, 255, .84);
+        }
+
+        .pendant {
+            position: absolute;
+            inset: -14%;
+            width: 128%;
+            height: 128%;
+            pointer-events: none;
+        }
+
+        .profile-copy { min-width: 0; }
+
+        .eyebrow {
+            margin-bottom: 4px;
+            color: #a5f8ff;
+            font-family: Consolas, monospace;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.6px;
+        }
+
+        .user-name {
+            max-width: 330px;
+            overflow: hidden;
+            color: #fff;
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1.2;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-shadow: 0 2px 14px rgba(5, 30, 51, .4);
+        }
+
+        .uid {
+            display: inline-block;
+            margin-top: 7px;
+            padding: 3px 9px;
+            border: 1px solid rgba(156, 243, 251, .42);
+            border-radius: 999px;
+            background: rgba(2, 28, 47, .3);
+            color: #c8fbff;
+            font-family: Consolas, monospace;
+            font-size: 10px;
+            letter-spacing: .8px;
+        }
+
+        .hero-title {
+            max-width: 410px;
+            margin-top: 18px;
+            padding: 10px 14px;
+            border-left: 3px solid var(--coral);
+            border-radius: 3px 12px 12px 3px;
+            background: linear-gradient(90deg, rgba(3, 24, 42, .54), rgba(5, 65, 83, .2));
+            color: #f5fdff;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .atri-character {
+            position: absolute;
+            z-index: 2;
+            right: 8px;
+            top: 44px;
+            bottom: auto;
+            width: auto;
+            height: 318px;
+            pointer-events: none;
+            filter: drop-shadow(-12px 12px 18px rgba(1, 19, 42, .38));
+        }
+
+        .wave {
+            position: absolute;
+            z-index: 3;
+            right: -50px;
+            bottom: -32px;
+            left: -30px;
+            height: 70px;
+            border-radius: 50% 46% 0 0;
+            background: rgba(230, 253, 255, .2);
+            transform: rotate(-2deg);
+        }
+
+        .wave::after {
+            content: "";
+            position: absolute;
+            inset: 22px -20px -20px;
+            border-radius: 48% 52% 0 0;
+            background: #f7feff;
+            transform: rotate(3deg);
+        }
+
+        .content {
+            position: relative;
+            z-index: 4;
+            margin-top: -2px;
+            padding: 16px 28px 25px;
+            background:
+                radial-gradient(circle at 94% 4%, rgba(80, 225, 238, .14), transparent 20%),
+                linear-gradient(180deg, #f8feff, #eef9fb);
+        }
+
+        .content-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 13px;
+        }
+
+        .type-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 11px;
+            border: 1px solid rgba(10, 137, 161, .18);
+            border-radius: 999px;
+            background: #dff9fb;
+            color: #087b92;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .4px;
+        }
+
+        .type-chip::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 2px;
+            background: var(--coral);
+            transform: rotate(45deg);
+        }
+
+        .atri-quote {
+            color: #75a0af;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .text-body {
+            color: var(--ink);
+            font-size: 16px;
+            line-height: 1.72;
+            overflow-wrap: anywhere;
+        }
+
+        .text-body img, .forward-text img {
+            max-height: 24px;
+            margin: 0 2px;
+            vertical-align: text-bottom;
+        }
+
+        .text-body a, .forward-text a {
+            padding: 0 3px;
+            border-radius: 4px;
+            color: #0788a3;
+            background: rgba(72, 228, 242, .12);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .summary {
+            margin-top: 14px;
+            padding: 12px 15px;
+            border: 1px solid rgba(24, 154, 176, .15);
+            border-radius: 14px;
+            background: rgba(210, 248, 251, .54);
+            color: #376579;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .summary::before {
+            content: "ATRI ANALYSIS";
+            display: block;
+            margin-bottom: 5px;
+            color: #0b8ca2;
+            font-family: Consolas, monospace;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+        }
+
+        .gallery {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 17px;
+        }
+
+        .media-frame {
+            position: relative;
+            overflow: hidden;
+            padding: 5px;
+            border: 1px solid rgba(15, 147, 171, .18);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, .82);
+            box-shadow: 0 8px 24px rgba(9, 62, 85, .09);
+            line-height: 0;
+        }
+
+        .media-frame img {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 13px;
+            object-fit: contain;
+        }
+
+        .forward-card {
+            position: relative;
+            margin-top: 17px;
+            overflow: hidden;
+            padding: 17px;
+            border: 1px solid rgba(22, 126, 151, .18);
+            border-radius: 18px;
+            background:
+                linear-gradient(135deg, rgba(225, 249, 252, .92), rgba(255, 255, 255, .95));
+        }
+
+        .forward-card::before {
+            content: "FORWARDED MEMORY";
+            position: absolute;
+            top: 12px;
+            right: 15px;
+            color: rgba(24, 111, 133, .42);
+            font-family: Consolas, monospace;
+            font-size: 8px;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .forward-user {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-height: 30px;
+            margin-bottom: 10px;
+            padding-right: 130px;
+            color: #0b8097;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .forward-avatar {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #fff;
+            border-radius: 10px 10px 10px 3px;
+            object-fit: cover;
+            box-shadow: 0 3px 10px rgba(7, 74, 100, .16);
+        }
+
+        .forward-title {
+            margin-bottom: 8px;
+            color: #173d55;
+            font-size: 16px;
+            font-weight: 800;
+            line-height: 1.45;
+        }
+
+        .forward-text {
+            color: #466d7e;
+            font-size: 14px;
+            line-height: 1.65;
+            overflow-wrap: anywhere;
+        }
+
+        .source-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 17px;
+            padding-top: 13px;
+            border-top: 1px dashed rgba(44, 142, 160, .22);
+        }
+
+        .qr-shell {
+            width: 67px;
+            height: 67px;
+            flex: 0 0 67px;
+            padding: 4px;
+            border: 1px solid rgba(25, 133, 155, .18);
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 5px 15px rgba(7, 67, 88, .12);
+        }
+
+        .qr-shell img {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+
+        .source-copy { min-width: 0; }
+
+        .source-label {
+            margin-bottom: 4px;
+            color: #0b8298;
+            font-family: Consolas, monospace;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+        }
+
+        .source-url {
+            max-width: 540px;
+            color: #6b8d9c;
+            font-size: 11px;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .footer {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 24px;
+            border-top: 1px solid rgba(141, 225, 234, .18);
+            color: #bdeef2;
+            background: linear-gradient(100deg, #08253b, #07556a);
+        }
+
+        .footer-brand {
+            font-family: Consolas, monospace;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.3px;
+        }
+
+        .performance {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .performance span { color: var(--coral); }
+    </style>
+</head>
+<body>
+    <article class="card">
+        <header class="hero">
+            {% set hero_image = atri_banner if atri_banner is defined and atri_banner else banner %}
+            {% if hero_image %}<img class="hero-banner" src="{{ hero_image }}" alt="ATRI card banner">{% endif %}
+            <div class="circuit-grid"></div>
+            <div class="sonar"></div>
+            <div class="bubble"></div>
+
+            <div class="system-bar">
+                <span class="system-name">ATRI // HUMANOID INTERFACE</span>
+                <span class="status">SYSTEM ONLINE</span>
+            </div>
+
+            <div class="identity">
+                <div class="profile-row">
+                    <div class="avatar-shell">
+                        {% set card_avatar = bot_avatar if bot_avatar is defined and bot_avatar else '/assets/Astrbot.png' %}
+                        <img class="avatar" src="{{ card_avatar }}" alt="bot avatar">
+                    </div>
+                    <div class="profile-copy">
+                        <div class="eyebrow">INFORMATION SOURCE</div>
+                        <div class="user-name">{{ name | default('AstrBot') }}</div>
+                        {% if uid %}<span class="uid">UID // {{ uid }}</span>{% endif %}
+                    </div>
+                </div>
+                {% if title %}<div class="hero-title">{{ title }}</div>{% endif %}
+            </div>
+
+            <img
+                class="atri-character"
+                src="{{ atri_character | default('/assets/atri/atri_character_v2.png') }}"
+                alt="ATRI">
+            <div class="wave"></div>
+        </header>
+
+        <main class="content">
+            <div class="content-heading">
+                <span class="type-chip">
+                    {% if type == "DYNAMIC_TYPE_AV" %}视频投稿
+                    {% elif type == "DYNAMIC_TYPE_ARTICLE" %}专栏更新
+                    {% elif type == "DYNAMIC_TYPE_FORWARD" %}转发动态
+                    {% elif type == "DYNAMIC_TYPE_DRAW" %}图文动态
+                    {% elif type == "DYNAMIC_TYPE_WORD" %}文字动态
+                    {% else %}信息记录{% endif %}
+                </span>
+                <span class="atri-quote">已由亚托莉为您整理完毕</span>
+            </div>
+
+            {% if text %}<div class="text-body">{{ text | safe | trim }}</div>{% endif %}
+            {% if summary %}<div class="summary">{{ summary | safe }}</div>{% endif %}
+
+            {% if image_urls and not forward %}
+            <div class="gallery">
+                {% for img_url in image_urls %}
+                <div class="media-frame"><img src="{{ img_url }}" alt="dynamic image"></div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if forward %}
+            <section class="forward-card">
+                <div class="forward-user">
+                    {% if forward.avatar %}<img class="forward-avatar" src="{{ forward.avatar }}" alt="avatar">{% endif %}
+                    <span>@{{ forward.name | default('用户') }}</span>
+                </div>
+                {% if forward.title %}<div class="forward-title">{{ forward.title }}</div>{% endif %}
+                {% if forward.text %}<div class="forward-text">{{ forward.text | safe }}</div>{% endif %}
+                {% if forward.image_urls %}
+                <div class="gallery">
+                    {% for img_url in forward.image_urls %}
+                    <div class="media-frame"><img src="{{ img_url }}" alt="forward image"></div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            {% if qrcode or url %}
+            <div class="source-row">
+                {% if qrcode %}<div class="qr-shell"><img src="{{ qrcode }}" alt="QR code"></div>{% endif %}
+                <div class="source-copy">
+                    <div class="source-label">SOURCE COORDINATES</div>
+                    {% if url %}<div class="source-url">{{ url }}</div>{% else %}<div class="source-url">扫描二维码查看原始内容</div>{% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </main>
+
+        <footer class="footer">
+            <span class="footer-brand">ASTRBOT × ATRI // MESSAGE ARCHIVE</span>
+            <span class="performance">因为我是<span>高性能</span>的嘛！</span>
+        </footer>
+    </article>
+</body>
+</html>

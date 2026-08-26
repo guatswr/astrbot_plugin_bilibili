@@ -46,8 +46,15 @@
         "description": "renderer_template",
         "type": "string",
         "hint": "渲染模板",
-        "options": ["template_1", "template_2", "simple"],
+        "options": ["template_1", "template_2", "simple", "atri"],
         "default": "template_2"
+    },
+    "atri_banner_image": {
+        "description": "ATRI 顶部自定义图像",
+        "type": "file",
+        "hint": "仅在 atri 模板中生效。建议上传横向图片；上传多张时按列表顺序使用第一张有效图片。",
+        "default": [],
+        "file_types": ["png", "jpg", "jpeg", "webp"]
     },
     "node": {
         "description": "node",
