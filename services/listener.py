@@ -682,7 +682,10 @@ class DynamicListener:
                 self._cache_render(dyn_id, ls, send_node_flag)
             return
 
-        img_path = await self.renderer.render_dynamic(payload)
+        platform_id = sub_user.split(":", 1)[0] if ":" in sub_user else ""
+        img_path = await self.renderer.render_dynamic(
+            payload, platform_id=platform_id
+        )
         if img_path:
             platform_name = self._resolve_platform_name(sub_user)
             url = payload.url
@@ -869,7 +872,10 @@ class DynamicListener:
                 )
             await self._send_dynamic(sub_user, ls, category="live")
             return
-        img_path = await self.renderer.render_dynamic(payload)
+        platform_id = sub_user.split(":", 1)[0] if ":" in sub_user else ""
+        img_path = await self.renderer.render_dynamic(
+            payload, platform_id=platform_id
+        )
         if img_path:
             platform_name = self._resolve_platform_name(sub_user)
             if is_height_valid(img_path, platform_name):

@@ -252,7 +252,9 @@ class Main(Star):
     ) -> MessageEventResult | None:
         text = "\n".join(filter(None, payload.text.split("<br>")))
         if self.rai:
-            img_path = await self.renderer.render_dynamic(payload)
+            img_path = await self.renderer.render_dynamic(
+                payload, platform_id=event.get_platform_id()
+            )
             if img_path:
                 await event.send(
                     MessageChain().file_image(img_path).message(payload.url)
@@ -438,7 +440,9 @@ class Main(Star):
             image_urls=[info["pic"]],
         )
 
-        img_path = await self.renderer.render_dynamic(payload)
+        img_path = await self.renderer.render_dynamic(
+            payload, platform_id=event.get_platform_id()
+        )
         if img_path:
             await event.send(MessageChain().file_image(img_path))
             return

@@ -1,5 +1,6 @@
 import asyncio
 import os
+from inspect import isawaitable
 from pathlib import Path
 from typing import Any, Dict
 
@@ -8,7 +9,6 @@ from astrbot.api.all import Star
 from astrbot.api.star import StarTools
 
 from ..core.constant import (
-    ATRI_CHARACTER_PATH,
     BANNER_PATH,
     CARD_TEMPLATES,
     DEFAULT_TEMPLATE,
@@ -51,8 +51,8 @@ class Renderer:
             StarTools.get_data_dir(plugin_name="astrbot_plugin_bilibili")
         ).resolve()
         self._atri_banner_cache: Dict[str, str] = {}
-        self._atri_character = image_to_base64(ATRI_CHARACTER_PATH)
-        self._bot_avatar = image_to_base64(LOGO_PATH)
+        self._bot_avatar_fallback = image_to_base64(LOGO_PATH)
+        self._bot_avatar_cache: Dict[str, str] = {}
         # 预加载所有模板
         self._templates: Dict[str, str] = {}
         self._load_all_templates()
@@ -98,6 +98,52 @@ class Renderer:
                 logger.warning(f"读取 ATRI 顶部图片失败 ({raw_path}): {exc}")
         return ""
 
+    async def _get_bot_qq_avatar(self, platform_id: str = "") -> str:
+        """获取指定 OneBot 平台的 Bot QQ 头像，失败时使用本地图标。"""
+        if platform_id and platform_id in self._bot_avatar_cache:
+            return self._bot_avatar_cache[platform_id]
+
+        context = getattr(self.star, "context", None)
+        platform = None
+        if context is not None and platform_id:
+            get_platform_inst = getattr(context, "get_platform_inst", None)
+            if callable(get_platform_inst):
+                platform = get_platform_inst(platform_id)
+
+        if platform is None and context is not None and not platform_id:
+            platform_manager = getattr(context, "platform_manager", None)
+            for candidate in getattr(platform_manager, "platform_insts", ()):
+                meta = candidate.meta()
+                if getattr(meta, "name", "") == "aiocqhttp":
+                    platform = candidate
+                    platform_id = str(getattr(meta, "id", "") or "aiocqhttp")
+                    break
+
+        if platform is None or getattr(platform.meta(), "name", "") != "aiocqhttp":
+            return self._bot_avatar_fallback
+
+        call_action = getattr(getattr(platform, "bot", None), "call_action", None)
+        if not callable(call_action):
+            return self._bot_avatar_fallback
+
+        try:
+            login_info = call_action(action="get_login_info")
+            if isawaitable(login_info):
+                login_info = await login_info
+            qq_number = (
+                login_info.get("user_id", "")
+                if isinstance(login_info, dict)
+                else getattr(login_info, "user_id", "")
+            )
+            qq_number = str(qq_number or "").strip()
+            if qq_number.isdecimal():
+                avatar_url = f"https://q1.qlogo.cn/g?b=qq&nk={qq_number}&s=640"
+                self._bot_avatar_cache[platform_id] = avatar_url
+                return avatar_url
+        except Exception as exc:
+            logger.warning(f"获取 Bot QQ 头像失败: {exc}")
+        return self._bot_avatar_fallback
+
     def _load_all_templates(self):
         """预加载所有注册的模板"""
         for template_id in CARD_TEMPLATES:
@@ -118,7 +164,12 @@ class Renderer:
             target_style = DEFAULT_TEMPLATE
         return self._templates.get(target_style, "")
 
-    async def render_dynamic(self, payload: RenderPayload, style: str | None = None):
+    async def render_dynamic(
+        self,
+        payload: RenderPayload,
+        style: str | None = None,
+        platform_id: str = "",
+    ):
         """
         将渲染数据字典渲染成最终图片。
         这是该类的主要入口方法。
@@ -136,8 +187,7 @@ class Renderer:
         tmpl = self.get_template(target_style)
         context = payload.to_template_context()
         if target_style == "atri":
-            context["atri_character"] = self._atri_character
-            context["bot_avatar"] = self._bot_avatar
+            context["bot_avatar"] = await self._get_bot_qq_avatar(platform_id)
             context["atri_banner"] = self._get_atri_banner()
 
         for attempt in range(1, MAX_ATTEMPTS + 1):
