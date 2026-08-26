@@ -12,6 +12,8 @@ def _asset_path(*parts: str) -> str:
 
 LOGO_PATH = _asset_path("Astrbot.png")
 BANNER_PATH = _asset_path("banner.png")
+# 旧版 Renderer 在热重载后可能仍缓存 ATRI 立绘路径；兼容素材保留在
+# assets/atri/atri_character_v2.png，但当前模板不会渲染它。
 BV = r"(?:\?.*)?(?:https?:\/\/)?(?:www\.)?(?:bilibili\.com\/video\/(BV[a-zA-Z0-9]+)|b23\.tv\/([a-zA-Z0-9]+))\/?(?:\?.*)?|BV[a-zA-Z0-9]+"
 VALID_FILTER_TYPES = {
     "forward",
